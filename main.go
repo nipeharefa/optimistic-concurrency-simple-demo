@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type (
@@ -23,14 +25,17 @@ type (
 
 var users = make(Users, 0)
 
+func RandBool() bool {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(2) == 1
+}
+
 func main() {
 	r := chi.NewRouter()
+	r.Use(middleware.Logger)
 	r.Get("/users/{id}/update", func(rw http.ResponseWriter, r *http.Request) {
-
 		ids := chi.URLParam(r, "id")
-
 		id, _ := strconv.ParseInt(ids, 10, 64)
-
 		for _, u := range users {
 
 			if u.ID == int(id) {
@@ -62,11 +67,15 @@ func main() {
 		user1 := users[0]
 
 		version := user1.Version
-		time.Sleep(2 * time.Second)
 
-		// check before update
+		if RandBool() {
+			time.Sleep(2 * time.Second)
+		}
+
+		// check before update / return response
 		if version != user1.Version {
 			msg := fmt.Sprintf("Error read version %d, actual version: %d", version, user1.Version)
+			rw.WriteHeader(http.StatusConflict)
 			rw.Write([]byte(msg))
 			return
 		}
@@ -74,5 +83,6 @@ func main() {
 		rw.Write([]byte(fmt.Sprintf("%d", version)))
 
 	})
+
 	http.ListenAndServe(":3000", r)
 }
